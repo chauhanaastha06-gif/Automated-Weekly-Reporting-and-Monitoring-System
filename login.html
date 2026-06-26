@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Login - Weekly Reporting System">
+    <title>Login — Weekly Tracker</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--bg-main);
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 420px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        }
+
+        .login-header {
+            padding: 32px 36px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .login-logo {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: -0.3px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .login-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 6px; }
+        .login-header p  { font-size: 14px; color: var(--text-secondary); }
+        .login-body      { padding: 28px 36px 32px; }
+
+
+        .login-message {
+            margin-top: 14px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .login-message.success { background: var(--green-bg); color: var(--green); }
+        .login-message.error   { background: var(--red-bg);   color: var(--red);   }
+
+        .btn-full {
+            width: 100%;
+            height: 40px;
+            font-size: 14px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Role context hint below form */
+        .role-hint {
+            margin-top: 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        /* OTP modal extras */
+        .otp-input-group input {
+            letter-spacing: 6px;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .otp-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+        .resend-link {
+            font-size: 12px;
+            color: var(--accent);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            font-family: inherit;
+            margin-top: 10px;
+            display: block;
+            text-align: right;
+        }
+
+        .resend-link:hover    { text-decoration: underline; }
+        .resend-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M22 12h-4l-3 9L9 3l-3 9H2'/></svg>">
+</head>
+<body>
+
+    <!-- ── Login Card ── -->
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                WeeklyTracker
+            </div>
+            <h1>Sign in</h1>
+            <p>Access the weekly reporting system</p>
+        </div>
+
+        <div class="login-body">
+
+            <!-- Role selected automatically via backend -->
+
+            <!-- Unified Email + OTP flow for both roles -->
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="you@company.com" autocomplete="email">
+            </div>
+
+            <button class="btn-submit btn-full" id="sendOtpBtn">
+                <span id="sendOtpText">Send OTP</span>
+            </button>
+
+            <p class="role-hint" id="roleHint">An OTP will be sent to your registered email address.</p>
+
+            <div class="login-message" id="userMessage"></div>
+
+        </div>
+    </div>
+
+    <!-- ── OTP Modal Popup ── -->
+    <div class="modal-backdrop" id="otpModal">
+        <div class="modal-box">
+            <button class="modal-close" id="otpModalClose" title="Close">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+
+            <div class="modal-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                     stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+
+            <div class="modal-title">Check your inbox</div>
+            <div class="modal-subtitle">
+                Enter the OTP sent to <strong id="otpEmailDisplay">your email</strong>
+            </div>
+
+            <div class="form-group">
+                <label for="otp">One-Time Password</label>
+                <div class="otp-input-group">
+                    <input type="text" id="otp" placeholder="· · · · · ·" maxlength="8" autocomplete="one-time-code">
+                </div>
+                <p class="otp-hint">The OTP may take a moment to arrive. Check spam if needed.</p>
+                <button class="resend-link" id="resendOtpBtn" disabled>Resend OTP</button>
+            </div>
+
+            <button class="btn-submit btn-full" id="verifyOtpBtn" style="margin-top: 8px;">
+                <span id="verifyOtpText">Verify &amp; Sign In</span>
+            </button>
+            <div class="login-message" id="otpMessage"></div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        if (Auth.isAuthenticated()) {
+            window.location.replace(Auth.isAdmin() ? 'index.html' : 'form.html');
+        }
+    </script>
+    <script src="js/login.js"></script>
+
+</body>
+</html>

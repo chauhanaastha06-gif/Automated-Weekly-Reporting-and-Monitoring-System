@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Report</title>
+
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* ── Success Popup Modal ── */
+        .popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .popup-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .popup-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px 48px;
+            text-align: center;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+            transform: scale(0.88) translateY(20px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .popup-overlay.show .popup-box {
+            transform: scale(1) translateY(0);
+        }
+        .popup-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #22c55e20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            border: 2px solid #22c55e40;
+        }
+        .popup-icon svg {
+            stroke: #22c55e;
+        }
+        .popup-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+        }
+        .popup-msg {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+        .popup-close-btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 32px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .popup-close-btn:hover { opacity: 0.85; }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M22 12h-4l-3 9L9 3l-3 9H2'/></svg>">
+</head>
+<body>
+    <script src="js/auth.js"></script>
+    <script>
+        if (!Auth.guard()) { /* redirecting */ }
+    </script>
+
+<nav class="navbar">
+    <div class="logo" style="display: flex; align-items: center;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        WeeklyTracker
+    </div>
+    <ul class="nav-links">
+        <li><a href="index.html">Dashboard</a></li>
+        <li><a href="history.html">My Dashboard</a></li>
+        <li><a href="form.html" class="active">Submit Report</a></li>
+        <li><a href="tracker.html">Tracker</a></li>
+        <li><a href="teams.html">Teams</a></li>
+    </ul>
+    <div class="navbar-right">
+        <button id="sendReportBtn" class="action-btn" style="background: var(--accent); color: white; border-color: var(--accent);">Director Report</button>
+        <div class="week-badge" id="weekBadgeNav">—</div>
+        <button class="theme-btn" onclick="location.reload()" title="Refresh Dashboard">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+            </svg>
+        </button>
+        <button id="themeToggle" class="theme-btn" title="Toggle theme">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+            </svg>
+        </button>
+        <!-- Profile icon -->
+        <div class="profile-avatar" id="profileAvatar" title="">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/>
+            </svg>
+        </div>
+        <button id="logoutBtn" class="action-btn">Logout</button>
+    </div>
+</nav>
+
+<main class="dashboard">
+
+    <div class="hero-section">
+        <h1>Submit Weekly Report</h1>
+        <p>Fill your weekly progress report</p>
+    </div>
+
+    <section class="tracker-section" style="position: relative;">
+
+        <!-- Auto-fill loader overlay -->
+        <div class="form-loading-overlay hidden" id="formLoader">
+            <div class="spinner spinner-lg"></div>
+            <span>Auto-filling your details…</span>
+        </div>
+
+        <div class="card-header" style="padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg-elevated); font-size: 14px; font-weight: 600;">Weekly Report Details</div>
+        <form id="reportForm" style="padding: 24px;">
+
+            <div class="form-grid-2">
+                <div class="form-group">
+                    <label>Select Team</label>
+                    <select id="teamName" required>
+                        <option value="" disabled selected>Choose Team</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Team Leader</label>
+                    <input type="text" id="leaderName" readonly placeholder="Auto-filled">
+                </div>
+
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>Email Address</label>
+                    <select id="leaderEmail" required>
+                        <option value="" disabled selected>Choose Email</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="form-group">
+                <label>Work Done This Week</label>
+                <textarea id="workDone" rows="4" placeholder="List all completed tasks and key activities..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Work In Progress</label>
+                <textarea id="wip" rows="4" placeholder="What's currently being worked on but not yet finished?" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Plans For Next Week</label>
+                <textarea id="nextWeekPlan" rows="4" placeholder="What are the main priorities for next week?" required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Achievements / Highlights <small style="color:var(--text-muted);font-weight:400;">(Optional)</small></label>
+                <textarea id="achievements" rows="3" placeholder="Any major wins, milestones, or positive feedback this week?"></textarea>
+            </div>
+
+            <div style="margin-top: 32px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <span id="draftStatus" style="font-size: 12px; color: var(--text-muted); transition: color 0.3s;"></span>
+                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <button type="button" id="saveDraftBtn" class="btn-submit" style="width: auto; min-width: 140px; background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong);">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px; margin-top: -2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> Save Draft
+                    </button>
+                    <button type="submit" class="btn-submit" style="width: auto; min-width: 160px;">Submit Report</button>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- ── Success Popup Modal ── -->
+    <div class="popup-overlay" id="successPopup" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
+        <div class="popup-box">
+            <div class="popup-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                </svg>
+            </div>
+            <div class="popup-title" id="popupTitle">Report Submitted!</div>
+            <div class="popup-msg">Your weekly report has been submitted successfully.<br>Thank you for keeping the team updated.</div>
+            <button class="popup-close-btn" id="popupCloseBtn">Done</button>
+        </div>
+    </div>
+
+
+
+</main>
+
+<script src="js/app.js"></script>
+<script src="js/form.js"></script>
+    <script>
+        document.getElementById('logoutBtn')?.addEventListener('click', () => Auth.logout());
+        Auth.applyRoleUI();
+
+        // Show profile icon with logged-in user's email
+        (function () {
+            const user = Auth.getUser();
+            const avatar = document.getElementById('profileAvatar');
+            if (avatar && user.email) {
+                avatar.title = user.email;
+                avatar.setAttribute('data-email', user.email);
+            }
+        })();
+
+        // ── Auto-fill from JWT token data (wt_user, userEmail, wt_role) ──
+        // ── Auto-fill strictly from JWT token data (wt_user, userEmail) ──
+        window.addEventListener('DOMContentLoaded', () => {
+            const user       = Auth.getUser();   // { name, department, email, role, token }
+            const formLoader = document.getElementById('formLoader');
+
+            if (!user.email) return;
+
+            // 1. Immediately set Name and Email from JWT
+            const leaderNameEl = document.getElementById('leaderName');
+            if (leaderNameEl && user.name) {
+                leaderNameEl.value       = user.name;
+                leaderNameEl.placeholder = 'Auto-filled';
+            }
+
+            const emailEl = document.getElementById('leaderEmail');
+            if (emailEl) {
+                // Force JWT email as the selected option
+                emailEl.innerHTML = `<option value="${user.email}" selected>${user.email}</option>`;
+            }
+
+            if (formLoader) formLoader.classList.remove('hidden');
+
+            let attempts = 0;
+            const maxAttempts = 30; // ~9 seconds max wait
+
+            const pollAutoFill = setInterval(() => {
+                attempts++;
+                const teamSelect = document.getElementById('teamName');
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(pollAutoFill);
+                    if (formLoader) formLoader.classList.add('hidden');
+                    return;
+                }
+
+                // Wait for the teams API to populate the dropdown initially so we can override/select
+                if (!teamSelect || teamSelect.options.length <= 1) return;
+
+                clearInterval(pollAutoFill);
+
+                // 2. Set Team strictly from JWT department
+                if (user.department) {
+                    // Ensure the department exists in the dropdown options
+                    let optionExists = Array.from(teamSelect.options).some(opt => opt.value.toLowerCase() === user.department.toLowerCase());
+                    if (!optionExists) {
+                        // Add it if the user's department is not in the list
+                        teamSelect.innerHTML += `<option value="${user.department}">${user.department}</option>`;
+                    }
+                    
+                    // Select the department
+                    Array.from(teamSelect.options).forEach(opt => {
+                        if (opt.value.toLowerCase() === user.department.toLowerCase()) {
+                            teamSelect.value = opt.value;
+                        }
+                    });
+                }
+
+                // 3. Trigger change event so existing report data is fetched
+                teamSelect.dispatchEvent(new Event('change'));
+
+                // 4. form.js will overwrite Name and Email on 'change'. We MUST re-apply the JWT values forcefully.
+                setTimeout(() => {
+                    if (leaderNameEl && user.name) {
+                        leaderNameEl.value = user.name;
+                    }
+                    const emailDropdown = document.getElementById('leaderEmail');
+                    if (emailDropdown) {
+                        let emailOptionExists = Array.from(emailDropdown.options).some(opt => opt.value.toLowerCase() === user.email.toLowerCase());
+                        if (!emailOptionExists) {
+                            emailDropdown.innerHTML += `<option value="${user.email}">${user.email}</option>`;
+                        }
+                        emailDropdown.value = user.email;
+                    }
+
+                    if (formLoader) formLoader.classList.add('hidden');
+                }, 150);
+
+            }, 300);
+        });
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Weekly Reporting Dashboard - Track team submissions and monitor weekly progress.">
+    <title>Dashboard — Weekly Tracker</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* ── Auth guard flicker prevention ── */
+        body { visibility: hidden; }
+        body.ready { visibility: visible; }
+
+        /* ── Dashboard page layout ── */
+        .page-grid {
+            display: grid;
+            grid-template-columns: 1fr 260px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* Left column stacks its children */
+        .col-main {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        /* ── Stat strip ── */
+        .stats-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+        }
+
+        .stat-card__label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .stat-card__value {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .stat-card:nth-child(1) { border-top: 2px solid var(--green); }
+        .stat-card:nth-child(2) { border-top: 2px solid var(--amber); }
+        .stat-card:nth-child(3) { border-top: 2px solid var(--text-muted); }
+        .stat-card:nth-child(4) { border-top: 2px solid var(--red); }
+
+        /* ── Week schedule ── */
+        .schedule-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated);
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .days-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0;
+        }
+
+        .day-cell {
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            border-right: 1px solid var(--border);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .day-cell:last-child { border-right: none; }
+
+        .day-cell .day-name { font-size: 13px; font-weight: 600; }
+        .day-cell .day-date { font-size: 11px; font-weight: 400; color: var(--text-muted); }
+
+        .day-cell small {
+            font-size: 10px;
+            font-weight: 500;
+            padding: 2px 7px;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+        .day-cell.today {
+            background: var(--accent-subtle);
+            color: var(--accent);
+        }
+        .day-cell.today .day-date { color: var(--accent); opacity: 0.8; }
+
+        .day-cell.reminder small {
+            background: var(--amber-bg);
+            color: var(--amber);
+        }
+
+        .day-cell.final-reminder small {
+            background: var(--red-bg);
+            color: var(--red);
+        }
+
+        /* ── Table section ── */
+        .table-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .table-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-elevated);
+        }
+
+        .table-card-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* ── Right sidebar ── */
+        .col-side {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 0;
+        }
+
+        /* ── Overview card (right side) ── */
+        .overview-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .overview-card-body {
+            padding: 16px;
+        }
+
+        .donut-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 0 12px;
+            position: relative;
+            width: 130px;
+            height: 130px;
+            margin: 0 auto;
+        }
+
+        #submissionChart {
+            width: 130px !important;
+            height: 130px !important;
+        }
+
+        .chart-percentage {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 700;
+            pointer-events: none;
+        }
+
+        .overview-stats-list {
+            margin-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .overview-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .overview-stat-row:last-child { border-bottom: none; }
+
+        .overview-stat-row strong {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ── Workflow sidebar card ── */
+        .side-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .side-card-body {
+            padding: 14px 16px;
+        }
+
+        .workflow-status-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--green);
+            margin-bottom: 4px;
+        }
+
+        .workflow-sync {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* ── Nav active ── */
+        .nav-links a.active {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+
+        /* ── Buttons & Modal (Admin View) ── */
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            font-weight: 500;
+        }
+        
+        .btn-primary-sm {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-secondary-sm {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary-sm:hover {
+            background: var(--bg-hover);
+        }
+
+        .popup-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .popup-overlay.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .popup-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: left;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+            transform: scale(0.95) translateY(10px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .popup-overlay.show .popup-box {
+            transform: scale(1) translateY(0);
+        }
+        .popup-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .popup-close-icon {
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .popup-close-icon:hover {
+            color: var(--text-primary);
+        }
+        .report-field {
+            margin-bottom: 16px;
+        }
+        .report-field label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        .report-field div {
+            font-size: 14px;
+            color: var(--text-primary);
+            background: var(--bg-elevated);
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            white-space: pre-wrap;
+        }
+    </style>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M22 12h-4l-3 9L9 3l-3 9H2'/></svg>">
+</head>
+<body>
+    <script src="js/auth.js"></script>
+    <script>
+        if (!Auth.adminOnly()) { /* redirecting */ }
+    </script>
+
+    <nav class="navbar">
+        <div class="logo" style="display: flex; align-items: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            WeeklyTracker
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html" class="active">Dashboard</a></li>
+            <li><a href="history.html">My Dashboard</a></li>
+            <li><a href="form.html">Submit Report</a></li>
+            <li><a href="tracker.html">Tracker</a></li>
+            <li><a href="teams.html">Teams</a></li>
+        </ul>
+        <div class="navbar-right">
+            <button id="sendReportBtn" class="action-btn" style="background: var(--accent); color: white; border-color: var(--accent);">Director Report</button>
+            <div class="week-badge" id="weekBadgeNav">—</div>
+            <button class="theme-btn" onclick="location.reload()" title="Refresh Dashboard">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+            </button>
+            <button id="themeToggle" class="theme-btn" title="Toggle theme">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                </svg>
+            </button>
+            <!-- Profile icon -->
+            <div class="profile-avatar" id="profileAvatar" title="">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/>
+                </svg>
+            </div>
+            <button class="action-btn" id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Page Loader -->
+    <div id="pageLoader">
+        <div class="loader-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            WeeklyTracker
+        </div>
+        <div class="spinner spinner-lg"></div>
+        <div class="loader-text">Loading dashboard data…</div>
+    </div>
+
+    <main class="dashboard">
+
+        <!-- Page Header -->
+        <div class="hero-section">
+            <h1>Weekly Reporting Dashboard</h1>
+            <p>Tracking team submissions for the current week</p>
+        </div>
+
+        <!-- Two-column page grid -->
+        <div class="page-grid">
+
+            <!-- ── LEFT COLUMN ── -->
+            <div class="col-main">
+
+                <!-- Stat Strip -->
+                <div class="stats-strip">
+                    <div class="stat-card">
+                        <div class="stat-card__label">Submitted</div>
+                        <div class="stat-card__value" id="submittedCount">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Pending <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 4px; color: var(--text-muted); cursor: help;" title="Currently in progress but not yet submitted"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                        <div class="stat-card__value" id="pendingCount">—</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card__label">Not Submitted <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 4px; color: var(--text-muted); cursor: help;" title="No action taken yet by the team"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg></div>
+                        <div class="stat-card__value" id="notSubmittedCount">—</div>
+                    </div>
+                </div>
+
+                <!-- Weekly Schedule -->
+                <div class="schedule-card">
+                    <div class="card-header">Weekly Schedule</div>
+                    <div class="days-row">
+                        <div class="day-cell" id="mon"><span class="day-name">Mon</span><span class="day-date"></span></div>
+                        <div class="day-cell" id="tue"><span class="day-name">Tue</span><span class="day-date"></span></div>
+                        <div class="day-cell" id="wed"><span class="day-name">Wed</span><span class="day-date"></span></div>
+                        <div class="day-cell" id="thu"><span class="day-name">Thu</span><span class="day-date"></span><small>🔔 Reminder</small></div>
+                        <div class="day-cell" id="fri"><span class="day-name">Fri</span><span class="day-date"></span><small>🚨 Final</small></div>
+                    </div>
+                </div>
+
+                <!-- Team Status Table -->
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <h3>Team Submission Status</h3>
+                        <input type="text" id="searchBox" class="search-box" placeholder="Search teams…">
+                    </div>
+                    <table class="tracker-table">
+                        <thead>
+                            <tr>
+                                <th>Team</th>
+                                <th>Leader</th>
+                                <th>Email</th>
+                                <th>Week ID</th>
+                                <th>Status</th>
+                                <th style="width: 80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="trackerBody"></tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- ── RIGHT SIDEBAR ── -->
+            <div class="col-side">
+
+                <!-- Submission Overview -->
+                <div class="overview-card">
+                    <div class="card-header">Submission Overview</div>
+                    <div class="overview-card-body">
+                        <div class="donut-wrap">
+                            <canvas id="submissionChart"></canvas>
+                            <div class="chart-percentage">
+                                <span id="chartPercentage">—</span>
+                            </div>
+                        </div>
+                        <div class="overview-stats-list">
+                            <div class="overview-stat-row">Submitted <strong id="overviewSubmitted">—</strong></div>
+                            <div class="overview-stat-row">Pending <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 4px; color: var(--text-muted); cursor: help;" title="Currently in progress but not yet submitted"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><strong id="overviewPending">—</strong></div>
+                            <div class="overview-stat-row">Not Submitted <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-left: 4px; color: var(--text-muted); cursor: help;" title="No action taken yet by the team"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg><strong id="overviewNotSubmitted">—</strong></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Workflow Status -->
+                <div class="side-card">
+                    <div class="card-header">Workflow Status</div>
+                    <div class="side-card-body">
+                        <div class="workflow-status-row">🟢 Running</div>
+                        <div class="workflow-sync" id="lastSync">Last Sync: Just now</div>
+                    </div>
+                </div>
+
+                <!-- Teams shortcut -->
+                <div class="side-card">
+                    <div class="card-header">Teams</div>
+                    <div class="side-card-body">
+                        <a href="teams.html" class="action-btn" style="width:100%;justify-content:center;display:flex;">View All Teams →</a>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ── View Modal Popup ── -->
+    <div class="popup-overlay" id="viewModal">
+        <div class="popup-box">
+            <div class="popup-title">
+                <span id="viewModalTitle">Report Details</span>
+                <span class="popup-close-icon" id="viewModalClose">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </span>
+            </div>
+            <div class="report-field">
+                <label>Work Done</label>
+                <div id="viewWorkDone"></div>
+            </div>
+            <div class="report-field">
+                <label>Work In Progress</label>
+                <div id="viewWip"></div>
+            </div>
+            <div class="report-field">
+                <label>Plans For Next Week</label>
+                <div id="viewPlanned"></div>
+            </div>
+            <div class="report-field">
+                <label>Achievements</label>
+                <div id="viewAchievements"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        document.getElementById('logoutBtn')?.addEventListener('click', () => Auth.logout());
+        // Apply role-based UI (hide Director Report for team leaders, etc.)
+        Auth.applyRoleUI();
+        (function () {
+            const user = Auth.getUser();
+            const avatar = document.getElementById('profileAvatar');
+            if (avatar && user.email) { avatar.title = user.email; }
+        })();
+    </script>
+
+</body>
+</html>
